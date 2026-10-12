@@ -364,9 +364,9 @@ export function parseSettings(document: unknown): SettingsParse {
 /** The comment a file Suite creates from nothing opens with. */
 const NEW_FILE_HEADER =
   " How aiswec behaves in this repository. Read by every stage when it starts;\n" +
-  " a value here wins over the stub's `with:` input. Shape and rules:\n" +
-  " docs/character.md in yusufseyrek/aiswec. Edit, push, and the next run picks\n" +
-  " it up, with no workflow change needed.";
+  " a value here wins over the stub's `with:` input. Every key:\n" +
+  " https://github.com/aiswec/core/blob/main/docs/settings.md. Edit, push, and\n" +
+  " the next run picks it up, with no workflow change needed.";
 
 /** Every leaf the schema knows, in the file's documented order. */
 const LEAVES: readonly (readonly string[])[] = [
