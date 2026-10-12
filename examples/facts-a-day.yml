@@ -1,0 +1,85 @@
+# The live facts-a-day system, expressed as config.
+#
+# Every value here is a hard-coding the audit found in the three source repos.
+# Where the hand-copied workflows had drifted, the drift is resolved to one
+# value and the decision is recorded in aiswec-mvp.md §5.
+#
+# One deliberate departure from transcription: the source workflows chained
+# refine straight into build, and `advance` below does not. That behaviour is
+# the defect this key exists to remove, so the example shows the corrected
+# pipeline: backend on the safe default, app opted into auto-advance.
+product_name: facts-a-day
+maintainers: [yusufseyrek]
+approval_keywords: [approve, approved, lgtm, ship it, go ahead]
+branch_prefix: aiswec
+namespace: aiswec
+reserved_comment_prefixes: ["/deploy"]
+
+# How far the pipeline gets before it needs a human. These are the engine
+# defaults written out; omitting the block entirely means the same thing.
+advance:
+  refine: auto # a spec is cheap, read-only, and the point
+  build: approval # a PR is not; reply "approve" or apply aiswec:ready-to-build
+  revise: auto # the maintainer's own comment on the bot's PR is the instruction
+
+hub:
+  repo: yusufseyrek/facts-a-day
+  budgets:
+    route: { turns: 80, step_min: 25 }
+
+models:
+  route: claude-opus-5
+  refine: claude-sonnet-5
+  build: claude-opus-5
+  revise: claude-opus-5
+
+budgets:
+  refine: { turns: 40, step_min: 15 }
+  build: { turns: 120, step_min: 40 }
+  revise: { turns: 120, step_min: 40 }
+
+smoke_model: claude-haiku-4-5-20251001
+
+repos:
+  - slug: backend
+    name: yusufseyrek/facts-a-day-backend
+    stages: [refine, build, revise] # revise is new here; the fork never got it
+    areas: "data model, API, scheduler, admin"
+    base_branch: main
+    deploy_sensitive: true # merging to main deploys production
+    runtime:
+      setup:
+        - uses: oven-sh/setup-bun@v2
+          with: { bun-version: 1.3.14 } # was 1.3.2 here, 1.3.14 in the app repo
+      install: bun install --frozen-lockfile
+    gates:
+      - bun run db:test
+      - bun test
+      - bun tsc --noEmit
+    verify_env: "curl the endpoint or open the admin page"
+    budgets:
+      build: { turns: 120, step_min: 55 } # db tests are slow; the app repo uses 40
+
+  - slug: app
+    name: yusufseyrek/facts-a-day-app
+    stages: [refine, build, revise]
+    areas: "screens, navigation, client services"
+    base_branch: main
+    deploy_sensitive: false
+    runtime:
+      setup:
+        - uses: oven-sh/setup-bun@v2
+          with: { bun-version: 1.3.14 }
+      install: bun install --frozen-lockfile
+    gates:
+      - bunx jest --watchman=false --ci --forceExit --detectOpenHandles
+      - bun run type-check
+      - bun run lint
+    verify_env: "bun start and exercise the affected screen"
+    advance:
+      # Nothing here deploys on merge, so the app repo takes the leash off and
+      # keeps the source system's chain-straight-to-build behaviour.
+      build: auto
+
+dependencies:
+  - { first: backend, then: app }

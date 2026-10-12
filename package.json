@@ -1,0 +1,25 @@
+{
+  "name": "aiswec-workspace",
+  "description": "AISWEC's engine: the GitHub Actions that turn an issue into a plan, a pull request and revisions, and the library and CLI they are built from.",
+  "type": "module",
+  "license": "FSL-1.1-ALv2",
+  "private": true,
+  "homepage": "https://aiswec.com",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "bun run --filter '*' typecheck",
+    "cli": "bun run packages/cli/src/cli.ts",
+    "sync:prompts": "bun run scripts/sync-prompts.ts"
+  },
+  "engines": {
+    "bun": ">=1.2.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14",
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2"
+  }
+}

@@ -1,0 +1,28 @@
+# Checks every published commit: the types, the tests, and that every workflow here parses.
+# The stage workflows are called by other repositories (`on: workflow_call`) and never run here.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.0"
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun test
+      - name: Lint the workflows
+        uses: docker://rhysd/actionlint:latest
+        with:
+          args: -color

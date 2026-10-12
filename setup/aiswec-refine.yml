@@ -1,0 +1,38 @@
+# AISWEC's refine stage: a maintainer adds the `aiswec` label to an issue, and a plan comes back.
+# Copy this file into your repository's .github/workflows/. How AISWEC behaves (who the maintainers
+# are, the model, your checks) lives in .github/aiswec.yml, not here.
+name: aiswec Refine
+
+on:
+  issues:
+    types: [opened, labeled]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Issue to plan, or to plan again"
+        required: true
+        type: string
+
+# A called workflow can do no more than this file allows.
+permissions:
+  contents: read
+  issues: write
+  id-token: write # only without an App of your own: the Claude GitHub App's token is fetched with it
+
+# One run per issue at a time. AISWEC's own comments get a group of their own and are skipped
+# below, so they never cancel a run a person started.
+concurrency:
+  group: aiswec-refine-${{ github.event.issue.number || inputs.issue_number }}${{ endsWith(github.actor, '[bot]') && '-bot' || '' }}
+  cancel-in-progress: false
+
+jobs:
+  refine:
+    if: github.event_name == 'workflow_dispatch' || !endsWith(github.actor, '[bot]')
+    uses: aiswec/core/.github/workflows/stage-refine.yml@v2
+    secrets:
+      claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      openrouter_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+      aiswec_app_id: ${{ secrets.AISWEC_APP_ID }}
+      aiswec_app_private_key: ${{ secrets.AISWEC_APP_PRIVATE_KEY }}
+    with:
+      namespace: aiswec
