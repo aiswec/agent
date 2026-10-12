@@ -612,10 +612,21 @@ jobs:
           NS: ${{ inputs.namespace }}
         run: |
           set -o pipefail
-          # A jq function, as text, so every read below strips the same way: every HTML comment goes
-          # but a bare marker of this namespace (`<!-- <ns>-spec:v1 -->`) on a line of its own.
-          # shellcheck disable=SC2016  # $ns is jq's variable, not the shell's
-          STRIP='def strip: gsub("<!--(?!\\s*" + $ns + "-[a-z]+:v1\\s*-->)[\\s\\S]{0,4000}?-->"; "");'
+          # A jq function, as text, so every read below strips the same way: whatever GitHub's page
+          # hides goes, since a maintainer never saw it (closed 2026-10-13: the pattern before it
+          # missed a comment over 4,000 characters, an unclosed one and a link definition). Every
+          # HTML comment, from `<!--` to the first `-->` or to the end when there is none, as a
+          # browser reads one, but a bare marker of this namespace (`<!-- <ns>-spec:v1 -->`); every
+          # link definition, which is never drawn (`[//]: # (...)`), a footnote's kept; and the
+          # characters that draw as nothing (zero widths, Unicode tags). Split, not one pattern, so
+          # a body of any length is one pass.
+          # shellcheck disable=SC2016  # $ns and $p are jq's variables, not the shell's
+          STRIP='def strip:
+            (split("<!--") as $p | $p[0] + ([$p[1:][]
+              | if test("\\A\\s*" + $ns + "-[a-z]+:v1\\s*-->") then "<!--" + .
+                elif test("-->") then sub("\\A[\\s\\S]*?-->"; "") else "" end] | join("")))
+            | split("\n") | map(select(test("\\A {0,3}\\[[^\\]^][^\\]]*\\]:") | not)) | join("\n")
+            | gsub("[\\x{E0000}-\\x{E007F}\\x{200B}-\\x{200F}\\x{2060}-\\x{2064}\\x{FEFF}]"; "");'
           # The block a files line opens (packages/core/src/protocol/files.ts): the marker and the links
           # under it, which GitHub shows as the files themselves. The engine is handed the files of a
           # maintainer's line as files (the next step), so the links into GitHub go with the marker.
@@ -1572,9 +1583,9 @@ jobs:
             # useful attached to the thing it releases. The marker stays on its
             # own first line, which is all the build stage's fetch requires.
             # The run line lands after the footer, so the spec marker keeps
-            # line 1 (all stage-build's fetch and `hasMarker` require) and
-            # `stripMarkerLines` hides the run line from the spec the build
-            # engine is handed.
+            # line 1 (all stage-build's fetch and `hasMarker` require); build's
+            # strip takes it out of the plan its engine reads, since a marker
+            # carrying a payload is not a bare one.
             {
               cat /tmp/aiswec-spec.md
               printf '\n\n---\n\n%s%s\n' "$RELEASE_FOOTER" "$SUFFIX"

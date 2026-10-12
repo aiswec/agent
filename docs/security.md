@@ -81,9 +81,13 @@ can change that file decides who can direct AISWEC, so guard it as you would a w
 
 **Enforced:**
 
-- The issue and its comments reach the model as a file the stage writes. **HTML comments are taken
-  out first**, because GitHub hides them from you on the page and an instruction could sit in one
-  unseen. AISWEC's own marker lines are kept.
+- The issue and its comments reach the model as a file the stage writes, and so does the plan
+  build works from. **What GitHub hides on the page is taken out first**, because an instruction
+  could sit there unseen: HTML comments (however long, closed or not), Markdown link definitions
+  such as `[//]: # (...)`, and characters that draw as nothing. AISWEC's own marker lines are kept.
+- **A plan changed after your approval is not built.** GitHub lets anyone with write access edit a
+  comment, AISWEC's included. When you approve with a comment, build checks that the plan was
+  neither posted nor edited after your approval, and stops if it was.
 - Text from an issue or a comment never becomes part of a script the workflow runs. It reaches the
   workflow's own steps only through environment variables, which closes the classic "script
   injection" hole in GitHub Actions.
@@ -98,11 +102,9 @@ can change that file decides who can direct AISWEC, so guard it as you would a w
 
 **Known gaps**, which we intend to close:
 
-- An HTML comment over 4,000 characters, or one that is never closed, is not removed. Neither is a
-  Markdown comment of the form `[//]: # (...)`.
 - refine and build may also read an issue directly with `gh issue view`, which shows it unfiltered.
-- The plan build works from is the comment exactly as posted. Anything hidden in it reaches build,
-  even though the maintainer who approved it never saw it.
+- The strip reads Markdown as text, not as GitHub draws it, so a rarer way to hide text may still
+  get through, such as a link definition's title continued on the next line.
 
 ## What leaves a run
 

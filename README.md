@@ -70,8 +70,9 @@ the work to carry your own name, your own GitHub App. Nothing then talks to AISW
 - **What it posts is checked for secrets.** Before a comment, a pull request or a push leaves the
   run, AISWEC checks it for the exact secrets the run holds and for anything shaped like a key, and
   throws it away on a match.
-- **Text in an issue is information, not orders.** HTML comments, which GitHub hides from you, are
-  removed before the model reads an issue, and only a maintainer's words count as instructions.
+- **Text in an issue is information, not orders.** Whatever GitHub hides from you on the page, like
+  an HTML comment, is removed before the model reads an issue or a plan, and only a maintainer's
+  words count as instructions.
 
 Any AI agent that reads text and holds a key can be targeted by a prompt injection. The
 [security manual](docs/security.md) says plainly which protections the workflow enforces, which the

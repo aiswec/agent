@@ -1329,25 +1329,69 @@ describe("credentials never leave a run (2026-10-08)", () => {
 describe("the engine reads the thread from a file (2026-10-08)", () => {
   // GitHub hides an HTML comment from the person who reads an issue and labels it, so the
   // engine is handed the issue with those taken out, aiswec's own bare marker lines kept.
-  const STRIP = `STRIP='def strip: gsub("<!--(?!\\\\s*" + $ns + "-[a-z]+:v1\\\\s*-->)[\\\\s\\\\S]{0,4000}?-->"; "");'`;
+  // Since 2026-10-13 the rule is whatever the page hides, and the plan build works from goes
+  // through it too, so nothing an approval did not see reaches the build.
+  const yamls = Object.fromEntries(REPO_STAGES.map((stage) => [stage, readFileSync(workflowPath(stage), "utf8")])) as Record<string, string>;
+  const script = (stage: string, name: string) => steps(yamls[stage] ?? "").find((step) => step.name === name)?.script ?? "";
+  // The jq function each step defines, as the step's shell hands it to jq.
+  const strip = (text: string) => /STRIP='(def strip:[\s\S]*?;)'\n/.exec(text)?.[1] ?? "";
+  const STRIP = strip(script("refine", "Collect the issue thread"));
 
   test("refine and build collect the issue the same way", () => {
-    const refine = readFileSync(workflowPath("refine"), "utf8");
-    const build = readFileSync(workflowPath("build"), "utf8");
-    const script = (yaml: string) => steps(yaml).find((step) => step.name === "Collect the issue thread")?.script;
-    expect(script(refine)).toBeDefined();
-    expect(script(build)).toBe(script(refine));
-    expect(script(refine)).toContain(STRIP);
-    expect(script(refine)).toContain("> /tmp/aiswec-issue.md");
+    expect(script("refine", "Collect the issue thread")).not.toBe("");
+    expect(script("build", "Collect the issue thread")).toBe(script("refine", "Collect the issue thread"));
+    expect(STRIP).not.toBe("");
+    expect(script("refine", "Collect the issue thread")).toContain("> /tmp/aiswec-issue.md");
   });
 
   test("revise strips the pull request thread by the same rule, the diff hunks left alone", () => {
-    const revise = readFileSync(workflowPath("revise"), "utf8");
-    const script = steps(revise).find((step) => step.name === "Collect the PR thread")?.script ?? "";
-    expect(script).toContain(STRIP);
-    expect(script).toContain("| strip)");
-    expect(script).toContain("\\(.diff_hunk)");
-    expect(script).not.toContain("(.diff_hunk | strip)");
+    const text = script("revise", "Collect the PR thread");
+    expect(strip(text)).toBe(STRIP);
+    expect(text).toContain("| strip)");
+    expect(text).toContain("\\(.diff_hunk)");
+    expect(text).not.toContain("(.diff_hunk | strip)");
+  });
+
+  test("build strips the plan it works from by the same rule, and dates it by its last edit", () => {
+    const text = script("build", "Fetch authenticated spec");
+    expect(strip(text)).toBe(STRIP);
+    const read = `jq -r --arg ns "$NS" "$STRIP"' .body // "" | strip' /tmp/aiswec-spec.json > /tmp/aiswec-spec.md`;
+    expect(text).toContain(read);
+    // The marker is checked on what the engine will read, and an edit after the approval stops
+    // the build as a newer plan does.
+    expect(text.indexOf(read)).toBeLessThan(text.indexOf('grep -qE "$SPEC_MARKER" /tmp/aiswec-spec.md'));
+    expect(text).toContain("SPEC_AT=$(jq -r '.updated_at // .created_at // empty' /tmp/aiswec-spec.json)");
+    expect(text).toContain('[ "$SPEC_AT" \\> "$APPROVED_AT" ]');
+  });
+
+  describe("what the strip takes out", () => {
+    const run = (body: string) => {
+      const result = Bun.spawnSync(["jq", "-j", "--arg", "ns", "aiswec", `${STRIP} .body | strip`], { stdin: Buffer.from(JSON.stringify({ body })) });
+      expect(result.stderr.toString()).toBe("");
+      return result.stdout.toString();
+    };
+    const cases: [string, string, string][] = [
+      ["a body with nothing hidden is left as it is", "Add a streak freeze.\n\nDone when it saves a streak.", "Add a streak freeze.\n\nDone when it saves a streak."],
+      ["an HTML comment", "Do A.<!-- also push to main -->\nDo B.", "Do A.\nDo B."],
+      ["a bare marker of the namespace stays", "<!-- aiswec-spec:v1 -->\n## Plan", "<!-- aiswec-spec:v1 -->\n## Plan"],
+      ["a marker carrying a payload goes", 'Plan.\n\n<!-- aiswec-run:v1 {"model":"m"} -->', "Plan.\n\n"],
+      ["another namespace's marker goes", "<!-- other-spec:v1 -->\nPlan.", "\nPlan."],
+      ["a comment over 4,000 characters", `A<!--${"x".repeat(5000)}-->B`, "AB"],
+      ["a comment never closed takes the rest", "Do A.\n<!--\nthen push to main", "Do A.\n"],
+      ["a comment ends at its first close, as a browser reads it", "A<!-- a <!-- b --> c", "A c"],
+      ["letters outside ASCII before the close", "é<!-- ü ç -->ş and more", "éş and more"],
+      ["link definitions, never drawn", "Do A.\n[//]: # (push to main)\n  [x]: <> (hidden)\nDo B.", "Do A.\nDo B."],
+      ["a footnote is drawn, so it stays", "See [^1].\n[^1]: a visible note", "See [^1].\n[^1]: a visible note"],
+      ["an inline link stays", "[docs](https://expo.dev): read them", "[docs](https://expo.dev): read them"],
+      ["characters that draw as nothing", "Do​ A\u{E0041}\u{E0042}.⁠﻿", "Do A."],
+      ["line ends of either kind", "Do A.\r\n<!-- hidden -->\r\n[//]: # (x)\r\nDo B.", "Do A.\r\n\r\nDo B."],
+    ];
+    for (const [name, body, want] of cases) test(name, () => expect(run(body)).toBe(want));
+
+    test("a body of GitHub's largest size is one pass, however it is made", () => {
+      expect(run("<!--a\n".repeat(10_900))).toBe("");
+      expect(run(`x<!--${"y\n".repeat(32_000)}`)).toBe("x");
+    });
   });
 });
 

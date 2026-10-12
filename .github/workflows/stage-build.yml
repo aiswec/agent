@@ -828,8 +828,22 @@ jobs:
                     | select((.body // "") | test($re)) ]
                 | last // {}' \
             > /tmp/aiswec-spec.json
-          jq -r '.body // empty' /tmp/aiswec-spec.json > /tmp/aiswec-spec.md
-          SPEC_AT=$(jq -r '.created_at // empty' /tmp/aiswec-spec.json)
+          # The plan as the engine reads it: what GitHub's page hides taken out, by the rule the
+          # thread is stripped by ("Collect the issue thread" below), since an approval is given to
+          # what the page showed. Until 2026-10-13 the body reached the engine as posted, so an
+          # instruction inside an HTML comment of a plan reached the build unseen by the maintainer
+          # who approved it. The marker line survives the strip, so the check below still reads it.
+          # shellcheck disable=SC2016  # $ns and $p are jq's variables, not the shell's
+          STRIP='def strip:
+            (split("<!--") as $p | $p[0] + ([$p[1:][]
+              | if test("\\A\\s*" + $ns + "-[a-z]+:v1\\s*-->") then "<!--" + .
+                elif test("-->") then sub("\\A[\\s\\S]*?-->"; "") else "" end] | join("")))
+            | split("\n") | map(select(test("\\A {0,3}\\[[^\\]^][^\\]]*\\]:") | not)) | join("\n")
+            | gsub("[\\x{E0000}-\\x{E007F}\\x{200B}-\\x{200F}\\x{2060}-\\x{2064}\\x{FEFF}]"; "");'
+          jq -r --arg ns "$NS" "$STRIP"' .body // "" | strip' /tmp/aiswec-spec.json > /tmp/aiswec-spec.md
+          # When the plan last changed: its last edit, or its posting when it has none. GitHub lets
+          # anyone with write access edit a comment, aiswec's included, and the author stays aiswec.
+          SPEC_AT=$(jq -r '.updated_at // .created_at // empty' /tmp/aiswec-spec.json)
 
           if ! grep -qE "$SPEC_MARKER" /tmp/aiswec-spec.md; then
             set_state "$NS:needs-human"
@@ -842,13 +856,15 @@ jobs:
           # An approval is consent to a specific spec. The fetch above is
           # last-wins, and refine and build sit in different concurrency groups,
           # so a re-refine or an amended spec landing after the approval would
-          # otherwise be built on consent given to text nobody approved. Both
-          # timestamps are ISO-8601 UTC from the API, so they compare as strings.
+          # otherwise be built on consent given to text nobody approved. An edit
+          # counts since 2026-10-13 (SPEC_AT above); it was the posting alone, so
+          # a plan edited after its approval was built as edited. Both timestamps
+          # are ISO-8601 UTC from the API, so they compare as strings.
           if [ "$EVENT_NAME" = "issue_comment" ] && [ -n "$SPEC_AT" ] && [ -n "$APPROVED_AT" ] \
              && [ "$SPEC_AT" \> "$APPROVED_AT" ]; then
             set_state "$NS:refined"
             printf '> [!WARNING]\n> **Build stopped: a newer plan was posted after that approval.**\n\n' > /tmp/aiswec-notice.md
-            printf '%b\n' "| What | Value |\n| --- | --- |\n| Reason | I will not build something you have not read |\n| Run | $RUN_URL |\n\n### What to do\n\n- Read the latest plan above, then approve it again." >> /tmp/aiswec-notice.md
+            printf '%b\n' "| What | Value |\n| --- | --- |\n| Reason | I will not build something you have not read |\n| Plan | posted or edited at $SPEC_AT, after the approval at $APPROVED_AT |\n| Run | $RUN_URL |\n\n### What to do\n\n- Read the latest plan above, then approve it again." >> /tmp/aiswec-notice.md
             gh issue comment "$ISSUE" --body-file /tmp/aiswec-notice.md
             exit 1
           fi
@@ -882,10 +898,21 @@ jobs:
           NS: ${{ inputs.namespace }}
         run: |
           set -o pipefail
-          # A jq function, as text, so every read below strips the same way: every HTML comment goes
-          # but a bare marker of this namespace (`<!-- <ns>-spec:v1 -->`) on a line of its own.
-          # shellcheck disable=SC2016  # $ns is jq's variable, not the shell's
-          STRIP='def strip: gsub("<!--(?!\\s*" + $ns + "-[a-z]+:v1\\s*-->)[\\s\\S]{0,4000}?-->"; "");'
+          # A jq function, as text, so every read below strips the same way: whatever GitHub's page
+          # hides goes, since a maintainer never saw it (closed 2026-10-13: the pattern before it
+          # missed a comment over 4,000 characters, an unclosed one and a link definition). Every
+          # HTML comment, from `<!--` to the first `-->` or to the end when there is none, as a
+          # browser reads one, but a bare marker of this namespace (`<!-- <ns>-spec:v1 -->`); every
+          # link definition, which is never drawn (`[//]: # (...)`), a footnote's kept; and the
+          # characters that draw as nothing (zero widths, Unicode tags). Split, not one pattern, so
+          # a body of any length is one pass.
+          # shellcheck disable=SC2016  # $ns and $p are jq's variables, not the shell's
+          STRIP='def strip:
+            (split("<!--") as $p | $p[0] + ([$p[1:][]
+              | if test("\\A\\s*" + $ns + "-[a-z]+:v1\\s*-->") then "<!--" + .
+                elif test("-->") then sub("\\A[\\s\\S]*?-->"; "") else "" end] | join("")))
+            | split("\n") | map(select(test("\\A {0,3}\\[[^\\]^][^\\]]*\\]:") | not)) | join("\n")
+            | gsub("[\\x{E0000}-\\x{E007F}\\x{200B}-\\x{200F}\\x{2060}-\\x{2064}\\x{FEFF}]"; "");'
           # The block a files line opens (packages/core/src/protocol/files.ts): the marker and the links
           # under it, which GitHub shows as the files themselves. The engine is handed the files of a
           # maintainer's line as files (the next step), so the links into GitHub go with the marker.

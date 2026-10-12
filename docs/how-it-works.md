@@ -92,9 +92,10 @@ Reply to the plan with a comment whose first line starts with one of these words
 
 Or add the **`aiswec:ready-to-build`** label. Only a maintainer's approval counts.
 
-- AISWEC builds the plan **exactly as posted**. Anything you write after the keyword is not read,
-  so ask for a new plan first if you want something changed.
-- A plan posted after your approval replaces it, and needs its own approval.
+- AISWEC builds the plan **as you saw it**. Anything GitHub hides on the page, like an HTML
+  comment, is taken out first. Anything you write after the keyword is not read, so ask for a new
+  plan first if you want something changed.
+- A plan posted or edited after your approval stops the build, and needs its own approval.
 - If an earlier pull request for the same issue is still open, the build waits until you close or
   merge it.
 
