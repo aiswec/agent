@@ -202,8 +202,8 @@ jobs:
           permission-workflows: write
           permission-metadata: read
 
-      # Without the key, the stage asks Suite for its token (apps/suite/src/github/runtoken.ts of
-      # yusufseyrek/aiswec): the OIDC token GitHub hands this job, which the stub's `id-token:
+      # Without the key, the stage asks Suite for its token (Suite's apps/suite/src/github/runtoken.ts,
+      # which is not public): the OIDC token GitHub hands this job, which the stub's `id-token:
       # write` allows, says which repository and which stage is asking, and the answer is an
       # hour's token for this repository alone. The App's key acts on every installation, so it
       # stays on Suite's server and never sits in a project's secrets.
