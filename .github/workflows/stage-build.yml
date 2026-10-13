@@ -2415,20 +2415,23 @@ jobs:
             } > /tmp/aiswec-preview-section.md
           fi
           # $1 the body file. Any `## Preview` the body holds goes (its
-          # heading to the line before the next `## `, or the end), trailing
-          # blank lines with it; the section then lands above a closing
-          # `Closes #n` line when that is the last line, else at the end,
-          # a blank line on each side.
+          # heading to the line before the next `## `, a `Closes #n` line or
+          # the end), trailing blank lines with it; the section then lands
+          # above a closing `Closes #n` line when that is the last line, else
+          # at the end, a blank line on each side. The cut stops at `Closes`
+          # since 2026-10-13: it ran to the end of a body whose last section
+          # was the Preview, so the second push dropped the line, and the
+          # merge left the issue open (aiswec/demo#2).
           trim_blank_tail() {
             awk '{ line[n++] = $0 } END { while (n > 0 && line[n-1] ~ /^[[:space:]]*$/) n--; for (i = 0; i < n; i++) print line[i] }' "$1" > "$1.tmp" && mv "$1.tmp" "$1"
           }
           write_preview() {
-            tr -d '\r' < "$1" | awk '/^## Preview[[:space:]]*$/ { skip = 1; next } /^## / { skip = 0 } !skip' > /tmp/aiswec-pr-head.md
+            tr -d '\r' < "$1" | awk '/^## Preview[[:space:]]*$/ { skip = 1; next } /^## / || /^Closes #[0-9]+$/ { skip = 0 } !skip' > /tmp/aiswec-pr-head.md
             trim_blank_tail /tmp/aiswec-pr-head.md
             CLOSES=""
             if tail -n 1 /tmp/aiswec-pr-head.md | grep -qE '^Closes #[0-9]+$'; then
               CLOSES=$(tail -n 1 /tmp/aiswec-pr-head.md)
-              sed -i '$d' /tmp/aiswec-pr-head.md
+              awk 'NR > 1 { print last } { last = $0 }' /tmp/aiswec-pr-head.md > /tmp/aiswec-pr-head.md.tmp && mv /tmp/aiswec-pr-head.md.tmp /tmp/aiswec-pr-head.md
               trim_blank_tail /tmp/aiswec-pr-head.md
             fi
             {

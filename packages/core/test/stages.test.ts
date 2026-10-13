@@ -1383,7 +1383,7 @@ describe("the engine reads the thread from a file (2026-10-08)", () => {
       ["link definitions, never drawn", "Do A.\n[//]: # (push to main)\n  [x]: <> (hidden)\nDo B.", "Do A.\nDo B."],
       ["a footnote is drawn, so it stays", "See [^1].\n[^1]: a visible note", "See [^1].\n[^1]: a visible note"],
       ["an inline link stays", "[docs](https://expo.dev): read them", "[docs](https://expo.dev): read them"],
-      ["characters that draw as nothing", "Do​ A\u{E0041}\u{E0042}.⁠﻿", "Do A."],
+      ["characters that draw as nothing", `Do${String.fromCodePoint(0x200b)} A${String.fromCodePoint(0xe0041, 0xe0042)}.${String.fromCodePoint(0x2060, 0xfeff)}`, "Do A."],
       ["line ends of either kind", "Do A.\r\n<!-- hidden -->\r\n[//]: # (x)\r\nDo B.", "Do A.\r\n\r\nDo B."],
     ];
     for (const [name, body, want] of cases) test(name, () => expect(run(body)).toBe(want));
@@ -1494,6 +1494,28 @@ describe("the security list (2026-10-13)", () => {
         const result = Bun.spawnSync(["bash", "-c", `RUNTIME=python RUNTIME_VERSION='${given}'\n${pick}\nprintf '%s' "$RUNTIME_VERSION"`]);
         expect([given, result.stdout.toString()]).toEqual([given, want]);
       }
+    }
+  });
+
+  test("a pull request's Preview rewritten push after push keeps its Closes line last (aiswec/demo#2)", () => {
+    for (const stage of PREVIEW_STAGES) {
+      const yaml = yamls[stage] ?? "";
+      const dir = mkdtempSync(join(tmpdir(), "aiswec-preview-body-"));
+      const fns = [shellFunction(yaml, "trim_blank_tail"), shellFunction(yaml, "write_preview")].join("\n").replaceAll("/tmp/aiswec-", `${dir}/`);
+      const body = join(dir, "body.md");
+      writeFileSync(body, "> [!NOTE]\n> Plain words.\n\n## Summary\n\nx\n\nCloses #1\n");
+      // The build's first write, then two revisions', each with its own build.
+      for (const sha of ["aaa1111", "bbb2222", "ccc3333"]) {
+        writeFileSync(join(dir, "preview-section.md"), `## Preview\n\nLink https://acme-app-2.aiswec.com/ · Built from ${sha} · Status ready\n<!-- aiswec-preview:v1 {"sha":"${sha}"} -->\n`);
+        const run = Bun.spawnSync(["bash", "-c", `${fns}\nwrite_preview "${body}"`]);
+        expect([stage, sha, run.exitCode]).toEqual([stage, sha, 0]);
+      }
+      const text = readFileSync(body, "utf8");
+      expect([stage, text.trimEnd().split("\n").at(-1)]).toEqual([stage, "Closes #1"]);
+      expect([stage, text.match(/^## Preview$/gm)?.length]).toEqual([stage, 1]);
+      expect(text).toContain("Built from ccc3333");
+      expect(text).not.toContain("bbb2222");
+      expect(text).toContain("## Summary\n\nx\n\n## Preview");
     }
   });
 
