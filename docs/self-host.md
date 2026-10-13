@@ -85,6 +85,15 @@ gh secret set CLAUDE_CODE_OAUTH_TOKEN -R OWNER/REPO
 
 `gh` asks for the value, so the token never lands in your shell's history.
 
+The token is one long line, and a terminal that wraps it can break it on the way to the clipboard.
+A run that stops at "OAuth access token is invalid" got part of the token, and one that says no
+`claude_code_oauth_token` reaches the stage got nothing. On macOS, this sets the secret from the
+clipboard with every line break taken out, after checking it looks like a token:
+
+```sh
+T=$(pbpaste | tr -d '[:space:]'); [[ $T == sk-ant-oat01-* ]] && printf %s "$T" | gh secret set CLAUDE_CODE_OAUTH_TOKEN -R OWNER/REPO && echo "set, ${#T} characters"; unset T
+```
+
 **With OpenRouter:** create a key at [openrouter.ai](https://openrouter.ai), ideally with a spending
 limit, then:
 

@@ -47,7 +47,9 @@ flowchart LR
 
 Each stage is a reusable workflow in [`.github/workflows`](.github/workflows). Your repository calls
 them from three short files, so they run on your own GitHub Actions with your own model key. The
-whole loop, step by step: [How it works](docs/how-it-works.md).
+whole loop, step by step: [How it works](docs/how-it-works.md). To see one task run in full, as it
+happened, open [aiswec/demo](https://github.com/aiswec/demo): the issue, the plan, the pull request,
+a review and the revision that answered it.
 
 ## Two ways to run it
 
