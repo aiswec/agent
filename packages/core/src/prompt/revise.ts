@@ -17,7 +17,8 @@ const THREAD = `## Step 1: Load the conversation
 Read /tmp/aiswec-thread.md. It holds the ENTIRE feedback thread already
 fetched for you, in three sections: conversation comments, review
 summaries, and inline review comments anchored to a file and line; then
-read any file a maintainer attached that it lists at its end.
+read any file a maintainer attached that it lists at its end. Another issue
+or pull request: \`/tmp/aiswec-read N\`.
 - Inline comments matter most: each names a \`path\`:line and carries its
   diff context. A question about a specific line is answered about THAT
   line, not the pull request in general.

@@ -51,10 +51,11 @@ in your workflow files.
 What the model itself may do, by stage (**enforced** by the tool list each stage passes):
 
 - **refine** can read files, write its answer to a scratch file, search and fetch the web, and read
-  issues with `gh issue view`. It cannot run commands, commit or push.
+  another issue or pull request through the stage's reader (below). It cannot run commands, commit
+  or push.
 - **build** can also edit files and run: `git` (status, diff, log, add, commit, new branch, push),
-  `bun` and `npm` commands that install, run scripts, test, type-check and lint, `gh pr create`
-  and `gh pr view`, `ls` and `cat`.
+  `bun` and `npm` commands that install, run scripts, test, type-check and lint, `gh pr create`,
+  `ls` and `cat`.
 - **revise** has build's list without creating a branch or a pull request, plus `gh pr ready`.
 
 **Build and revise can run code they write**, because `bun run` and `npm run` run whatever a
@@ -85,6 +86,9 @@ can change that file decides who can direct AISWEC, so guard it as you would a w
   build works from. **What GitHub hides on the page is taken out first**, because an instruction
   could sit there unseen: HTML comments (however long, closed or not), Markdown link definitions
   such as `[//]: # (...)`, and characters that draw as nothing. AISWEC's own marker lines are kept.
+- **Another issue or pull request reaches it the same way.** The model's one way to read one is a
+  reader the stage writes, which prints it through the same filter. `gh issue view` and
+  `gh pr view`, which print a body as written, are not in its tools.
 - **A plan changed after your approval is not built.** GitHub lets anyone with write access edit a
   comment, AISWEC's included. When you approve with a comment, build checks that the plan was
   neither posted nor edited after your approval, and stops if it was.
@@ -102,7 +106,6 @@ can change that file decides who can direct AISWEC, so guard it as you would a w
 
 **Known gaps**, which we intend to close:
 
-- refine and build may also read an issue directly with `gh issue view`, which shows it unfiltered.
 - The strip reads Markdown as text, not as GitHub draws it, so a rarer way to hide text may still
   get through, such as a link definition's title continued on the next line.
 
@@ -119,9 +122,14 @@ On a match:
 
 The run then fails and says why.
 
-**Not covered:** commit messages, branches other than the one AISWEC works on, and requests the
-model makes with its web tools. GitHub hides known secret values in the run's log, but the log
-also shows the model's full transcript, so a secret in a file the model opens can appear there.
+The commit messages are read too, since a message is public as soon as it is pushed.
+
+**The run's log** shows the model's full transcript only in a private repository, where the log is
+as private as the code. In a public one, where anyone can read the log, it shows the outcome alone.
+GitHub hides known secret values in the log either way.
+
+**Not covered:** branches other than the one AISWEC works on, and requests the model makes with its
+web tools.
 
 ## What the model is told, and not forced, to do
 
@@ -162,12 +170,14 @@ Suite, the web app, reads GitHub as the person signed in to it. What it keeps is
 
 ## Third-party code a run uses
 
-- `actions/checkout@v4`, `actions/create-github-app-token@v2`, `anthropics/claude-code-action@v1`.
-- Build and revise also use `oven-sh/setup-bun@v2`, `actions/setup-node@v4` and
-  `actions/upload-artifact@v4`.
+- `actions/checkout` v4.4.0, `actions/create-github-app-token` v2.2.2 and
+  `anthropics/claude-code-action` v1.0.248.
+- Build and revise also use `oven-sh/setup-bun` v2.2.0, `actions/setup-node` v4.4.0 and
+  `actions/upload-artifact` v4.6.2.
 - With phone previews: `eas-cli@23.2.0` and Expo's own CLI, from npm.
 
-These are pinned to major versions, not to commits.
+Each action is pinned to a commit, with its release named beside it, so a tag moved by its owner
+changes nothing that runs in your repository. A new release reaches the stages as a change here.
 
 ## Reporting a problem
 

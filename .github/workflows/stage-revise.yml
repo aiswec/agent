@@ -183,7 +183,7 @@ jobs:
       - name: Mint the App token
         id: app_key
         if: steps.mode.outputs.via == 'key'
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
         with:
           app-id: ${{ secrets.aiswec_app_id }}
           private-key: ${{ secrets.aiswec_app_private_key }}
@@ -839,6 +839,24 @@ jobs:
             gh api "repos/$GH_REPO/pulls/$PR/comments" --paginate | jq -r --arg ns "$NS" "$STRIP$UNFILES"' .[] | "### [\(.created_at)] @\(.user.login) on `\(.path)`:\(.line // .original_line)\n\nDiff context:\n```\n\(.diff_hunk)\n```\n\nComment:\n\((.body // "") | unfiles | strip)\n"' || true
           } > /tmp/aiswec-thread.md
           echo "collected $(wc -l < /tmp/aiswec-thread.md) lines of thread"
+          # Another issue or pull request of this repository, for the engine (2026-10-13): `gh issue
+          # view` and `gh pr view` print a body as written, hidden comments and all, so they left its
+          # tools, and /tmp/aiswec-read prints one through the strip above. The repository is
+          # written into the script, so it reads no other, and its one input must be a number.
+          {
+            echo '#!/usr/bin/env bash'
+            echo 'set -euo pipefail'
+            printf 'REPO=%q NS=%q STRIP=%q UNFILES=%q\n' "$GH_REPO" "$NS" "$STRIP" "$UNFILES"
+            cat <<'READER'
+          N="${1:-}"
+          N="${N#\#}"
+          case "$N" in ''|*[!0-9]*) echo "usage: /tmp/aiswec-read <number of an issue or pull request here>" >&2; exit 2 ;; esac
+          gh api "repos/$REPO/issues/$N" | jq -r --arg ns "$NS" "$STRIP$UNFILES"' "# #\(.number): \(.title | strip)\n\nOpened by @\(.user.login) on \(.created_at), \(.state)\(if .pull_request then ", a pull request" else "" end).\n\n\((.body // "") | unfiles | strip)\n"'
+          printf '\n## Comments, oldest first\n\n'
+          gh api "repos/$REPO/issues/$N/comments" --paginate | jq -r --arg ns "$NS" "$STRIP$UNFILES"' .[] | "### [\(.created_at)] @\(.user.login)\n\n\((.body // "") | unfiles | strip)\n"'
+          READER
+          } > /tmp/aiswec-read
+          chmod +x /tmp/aiswec-read
 
       # The files a maintainer attached to the task, for the engine to read (2026-10-09;
       # packages/core/src/protocol/files.ts). Suite keeps each in this repository as a git blob, on
@@ -967,7 +985,7 @@ jobs:
 
       - name: Checkout PR branch
         if: steps.ctx.outputs.skip != 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           repository: ${{ github.repository }}
           ref: ${{ steps.ctx.outputs.branch }}
@@ -976,13 +994,13 @@ jobs:
 
       - name: Setup Bun
         if: steps.ctx.outputs.skip != 'true' && steps.cfg.outputs.runtime == 'bun'
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: ${{ steps.cfg.outputs.runtime_version }}
 
       - name: Setup Node
         if: steps.ctx.outputs.skip != 'true' && steps.cfg.outputs.runtime == 'node'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ steps.cfg.outputs.runtime_version }}
 
@@ -1047,7 +1065,7 @@ jobs:
         id: claude
         continue-on-error: true
         timeout-minutes: ${{ fromJSON(steps.cfg.outputs.timeout_min) }}
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@1d6de8cb0c237e7c15e9e1bdf973826ebae490cc # v1.0.248
         with:
           # One of the two, never both: with CLAUDE_CODE_OAUTH_TOKEN set the
           # CLI prefers the subscription and the gateway above goes unused.
@@ -1056,7 +1074,10 @@ jobs:
           # endpoint accepts.
           claude_code_oauth_token: ${{ steps.ask.outputs.provider != 'openrouter' && secrets.claude_code_oauth_token || '' }}
           anthropic_api_key: ${{ steps.ask.outputs.provider == 'openrouter' && secrets.openrouter_api_key || '' }}
-          show_full_output: "true"
+          # The engine's whole transcript in the run log, where only people who can read
+          # the repository read the log (2026-10-13): a public repository's log is
+          # anyone's, and the transcript holds whatever the engine opened.
+          show_full_output: ${{ github.event.repository.private && 'true' || 'false' }}
           # In App mode the engine pushes as the App; empty, the action falls
           # back to the Claude GitHub App via OIDC (claude[bot]). Git
           # authorship follows; the literals are the action's own defaults.
@@ -1136,7 +1157,8 @@ jobs:
             Read /tmp/aiswec-thread.md. It holds the ENTIRE feedback thread already
             fetched for you, in three sections: conversation comments, review
             summaries, and inline review comments anchored to a file and line; then
-            read any file a maintainer attached that it lists at its end.
+            read any file a maintainer attached that it lists at its end. Another issue
+            or pull request: `/tmp/aiswec-read N`.
             - Inline comments matter most: each names a `path`:line and carries its
               diff context. A question about a specific line is answered about THAT
               line, not the pull request in general.
@@ -1279,7 +1301,7 @@ jobs:
             --max-turns ${{ steps.cfg.outputs.max_turns }}
             --model ${{ steps.ask.outputs.model }}
             ${{ steps.ask.outputs.effort && format('--effort {0}', steps.ask.outputs.effort) || '' }}
-            --allowedTools "${{ inputs.allowed_tools || 'Read,Edit,Write,Glob,Grep,WebSearch,WebFetch,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(bun install:*),Bash(bun run:*),Bash(bun test:*),Bash(bun tsc:*),Bash(bunx jest:*),Bash(bunx tsc:*),Bash(bunx eslint:*),Bash(npm run:*),Bash(npx jest:*),Bash(npx tsc:*),Bash(npx eslint:*),Bash(gh pr view:*),Bash(gh pr ready:*),Bash(gh issue view:*),Bash(ls:*),Bash(cat:*)' }}"
+            --allowedTools "${{ inputs.allowed_tools || 'Read,Edit,Write,Glob,Grep,WebSearch,WebFetch,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(bun install:*),Bash(bun run:*),Bash(bun test:*),Bash(bun tsc:*),Bash(bunx jest:*),Bash(bunx tsc:*),Bash(bunx eslint:*),Bash(npm run:*),Bash(npx jest:*),Bash(npx tsc:*),Bash(npx eslint:*),Bash(gh pr ready:*),Bash(/tmp/aiswec-read:*),Bash(ls:*),Bash(cat:*)' }}"
 
       # Claude Code does not stop at --max-turns: it can finish past it and report success, and
       # claude-code-action then fails the step (its run-claude-sdk.ts, since 2026-08-07). By then
@@ -1361,6 +1383,8 @@ jobs:
           [ ! -s /tmp/aiswec-reply.md ] || cat /tmp/aiswec-reply.md >> /tmp/aiswec-outgoing.txt
           if [ -n "$BEFORE_SHA" ] && git cat-file -e "$BEFORE_SHA" 2>/dev/null; then
             git diff "$BEFORE_SHA" >> /tmp/aiswec-outgoing.txt 2>/dev/null || true
+            # The commit messages too (2026-10-13): a message is on GitHub as soon as it is pushed.
+            git log --format=%B "$BEFORE_SHA..HEAD" >> /tmp/aiswec-outgoing.txt 2>/dev/null || true
           fi
           if FOUND=$(leaks /tmp/aiswec-outgoing.txt); then
             echo "::error::the reply or the commits carried $FOUND; the branch is put back and nothing is posted"
@@ -1528,7 +1552,7 @@ jobs:
         id: upload
         if: always() && steps.preview.outputs.status == 'ready'
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: aiswec-preview-${{ steps.preview.outputs.pr }}
           path: /tmp/aiswec-preview
@@ -1916,7 +1940,7 @@ jobs:
       - name: Refresh the App token
         id: app_final
         if: always() && steps.mode.outputs.via == 'key' && steps.ctx.outputs.skip == 'false'
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
         with:
           app-id: ${{ secrets.aiswec_app_id }}
           private-key: ${{ secrets.aiswec_app_private_key }}

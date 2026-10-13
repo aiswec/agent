@@ -170,7 +170,7 @@ jobs:
       - name: Mint the App token
         id: app_key
         if: steps.mode.outputs.via == 'key'
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
         with:
           app-id: ${{ secrets.aiswec_app_id }}
           private-key: ${{ secrets.aiswec_app_private_key }}
@@ -637,6 +637,24 @@ jobs:
             gh api "repos/$GH_REPO/issues/$ISSUE/comments" --paginate | jq -r --arg ns "$NS" "$STRIP$UNFILES"' .[] | "### [\(.created_at)] @\(.user.login)\n\n\((.body // "") | unfiles | strip)\n"' || true
           } > /tmp/aiswec-issue.md
           echo "collected $(wc -l < /tmp/aiswec-issue.md) lines of the issue thread"
+          # Another issue or pull request of this repository, for the engine (2026-10-13): `gh issue
+          # view` and `gh pr view` print a body as written, hidden comments and all, so they left its
+          # tools, and /tmp/aiswec-read prints one through the strip above. The repository is
+          # written into the script, so it reads no other, and its one input must be a number.
+          {
+            echo '#!/usr/bin/env bash'
+            echo 'set -euo pipefail'
+            printf 'REPO=%q NS=%q STRIP=%q UNFILES=%q\n' "$GH_REPO" "$NS" "$STRIP" "$UNFILES"
+            cat <<'READER'
+          N="${1:-}"
+          N="${N#\#}"
+          case "$N" in ''|*[!0-9]*) echo "usage: /tmp/aiswec-read <number of an issue or pull request here>" >&2; exit 2 ;; esac
+          gh api "repos/$REPO/issues/$N" | jq -r --arg ns "$NS" "$STRIP$UNFILES"' "# #\(.number): \(.title | strip)\n\nOpened by @\(.user.login) on \(.created_at), \(.state)\(if .pull_request then ", a pull request" else "" end).\n\n\((.body // "") | unfiles | strip)\n"'
+          printf '\n## Comments, oldest first\n\n'
+          gh api "repos/$REPO/issues/$N/comments" --paginate | jq -r --arg ns "$NS" "$STRIP$UNFILES"' .[] | "### [\(.created_at)] @\(.user.login)\n\n\((.body // "") | unfiles | strip)\n"'
+          READER
+          } > /tmp/aiswec-read
+          chmod +x /tmp/aiswec-read
 
       # The files a maintainer attached to the task, for the engine to read (2026-10-09;
       # packages/core/src/protocol/files.ts). Suite keeps each in this repository as a git blob, on
@@ -765,7 +783,7 @@ jobs:
 
       - name: Checkout code
         if: steps.ctx.outputs.skip != 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           repository: ${{ github.repository }}
           fetch-depth: 1
@@ -828,7 +846,7 @@ jobs:
         id: claude
         continue-on-error: true
         timeout-minutes: ${{ fromJSON(steps.ask.outputs.timeout_min || steps.cfg.outputs.timeout_min) }}
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@1d6de8cb0c237e7c15e9e1bdf973826ebae490cc # v1.0.248
         with:
           # One of the two, never both: with CLAUDE_CODE_OAUTH_TOKEN set the
           # CLI prefers the subscription and the gateway above goes unused.
@@ -837,7 +855,10 @@ jobs:
           # endpoint accepts.
           claude_code_oauth_token: ${{ steps.ask.outputs.provider != 'openrouter' && secrets.claude_code_oauth_token || '' }}
           anthropic_api_key: ${{ steps.ask.outputs.provider == 'openrouter' && secrets.openrouter_api_key || '' }}
-          show_full_output: "true"
+          # The engine's whole transcript in the run log, where only people who can read
+          # the repository read the log (2026-10-13): a public repository's log is
+          # anyone's, and the transcript holds whatever the engine opened.
+          show_full_output: ${{ github.event.repository.private && 'true' || 'false' }}
           # In App mode the engine runs as the App; empty, the action falls
           # back to its own Claude GitHub App via OIDC (claude[bot]).
           github_token: ${{ steps.app.outputs.token }}
@@ -1240,7 +1261,7 @@ jobs:
             - Never post comments, never apply or remove labels, never edit the issue body or title; the workflow owns every GitHub write.
             - Write exactly ONE of the four output files, nothing else outside /tmp.
             - No code changes, no branches, no commits, no pushes in this step.
-            - The only shell command available is `gh issue view`.
+            - The only shell command is `/tmp/aiswec-read N`, which prints issue or pull request N.
             - Never print, echo, commit or send anywhere a secret, a token or the contents of a .env file.
             - Do the work YOURSELF in this run: never delegate to subagents, background
               tasks, or "verification agents", and never end your turn waiting for a
@@ -1261,7 +1282,7 @@ jobs:
             --max-turns ${{ steps.ask.outputs.max_turns || steps.cfg.outputs.max_turns }}
             --model ${{ steps.ask.outputs.model }}
             ${{ steps.ask.outputs.effort && format('--effort {0}', steps.ask.outputs.effort) || '' }}
-            --allowedTools "Read,Glob,Grep,Write,WebSearch,WebFetch,Bash(gh issue view:*)"
+            --allowedTools "Read,Glob,Grep,Write,WebSearch,WebFetch,Bash(/tmp/aiswec-read:*)"
 
       # Claude Code does not stop at --max-turns: it can finish past it and report success, and
       # claude-code-action then fails the step (its run-claude-sdk.ts, since 2026-08-07). By then

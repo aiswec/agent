@@ -20,7 +20,7 @@ const REFINE: readonly string[] = [
   WRITES,
   "Write exactly ONE of the four output files, nothing else outside /tmp.",
   "No code changes, no branches, no commits, no pushes in this step.",
-  "The only shell command available is `gh issue view`.",
+  "The only shell command is `/tmp/aiswec-read N`, which prints issue or pull request N.",
   SECRETS,
   SELF,
   `CRITICAL: ending without one of the four output files is a hard pipeline
