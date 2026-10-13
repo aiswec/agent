@@ -109,6 +109,9 @@ bun run cli prompt refine       # what the model is handed, word for word
 - [The wire format](docs/wire.md): every comment, label and marker AISWEC writes, exactly.
 - [How AISWEC behaves](docs/character.md): when it asks, when it plans, when it stops.
 
+The same manuals are at [aiswec.com/docs](https://aiswec.com/docs/). Suite, the hosted app, has
+[a manual of its own](https://aiswec.com/suite/docs).
+
 ## License
 
 [FSL-1.1-ALv2](LICENSE.md), the Functional Source License. In short: you may read, run, change and
