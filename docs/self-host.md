@@ -110,10 +110,10 @@ runtime:
 
 - `maintainers` are the people AISWEC takes instructions from. Only they can assign, approve and
   review.
-- `gates` are the commands that say a change works. AISWEC runs them before it pushes. Write them
-  as `bun` commands or `npm run` scripts, since those are what it may run (see
-  [Settings](settings.md#gates)).
-- `runtime` is what to install first. For a bun project, use `setup: bun` and leave `version` out.
+- `gates` are the commands that say a change works. AISWEC runs them before it pushes, each as
+  written, so keep each one plain words (see [Settings](settings.md#gates)).
+- `runtime` is what to install first. For a bun project, use `setup: bun` and leave `version` out;
+  for Python, `setup: python` with an `install` such as `pip install -r requirements.txt pytest`.
 
 Every key is in [Settings](settings.md).
 

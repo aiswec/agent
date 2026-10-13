@@ -37,6 +37,13 @@ describe("parseSettings", () => {
     expect(issues.join("\n")).toContain("modle");
   });
 
+  test("a Python project names its runtime, and a runtime outside the four is refused (2026-10-13)", () => {
+    const { settings, issues } = parseSettings(parseYaml('runtime:\n  setup: python\n  version: "3.12"\n  install: pip install -e . pytest\ngates: [pytest]'));
+    expect(issues).toEqual([]);
+    expect(settings?.runtime).toEqual({ setup: "python", version: "3.12", install: "pip install -e . pytest" });
+    expect(parseSettings(parseYaml("runtime: { setup: ruby }")).issues[0]).toMatch(/^runtime\.setup: /);
+  });
+
   test("rejects an effort outside the CLI's set", () => {
     const { issues } = parseSettings(parseYaml("effort: extreme"));
     expect(issues[0]).toMatch(/^effort: /);

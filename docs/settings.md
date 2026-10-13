@@ -15,7 +15,7 @@ advance:
   build: approval               # or auto: build starts as soon as a plan is posted
 
 runtime:
-  setup: bun                    # bun, node or none
+  setup: bun                    # bun, node, python or none
   version: "1.3.14"             # in quotes, or YAML reads 1.30 as 1.3
   install: bun install --frozen-lockfile
 
@@ -84,20 +84,25 @@ checks the code.
 The gates are run by the model as it works. Your own CI still runs on every push, and is what a
 merge should wait for.
 
-The model may run `bun` commands (`bun test`, `bun run lint`) and `npm run` scripts
-(`npm run test`), and `jest`, `tsc` and `eslint` through `bunx` or `npx`. Write each gate in one of
-those forms; `npm test` on its own, `cargo test` or `pytest` will be refused. For another language,
-put the command in a `package.json` script, or pass the whole list of tools the model may use as
-`allowed_tools` in your build and revise workflow files.
+The model may run each gate exactly as you wrote it, and the `install` command below, besides its
+own `bun` commands and `npm run` scripts: `npm test`, `cargo test`, `go test ./...`, `pytest` or
+`make check` all work. A gate must be plain words (letters, digits, spaces and `. / : = + @ _ -`).
+One with a quote, a `$`, a `;` or a `|` is not given to the model, and the run's log says so; put
+such a command in a `package.json` script or a Makefile target and name that instead.
+
+GitHub's runners already have Go, Rust, Java, .NET and Make, and their tools fetch what a project
+needs. Python needs its runtime (below) and an install command.
 
 ### `runtime`
 
 What build and revise install before the model starts.
 
-- `setup`: `bun`, `node` or `none`. Default `bun`.
+- `setup`: `bun`, `node`, `python` or `none`. Default `bun`. `python` is GitHub's own Python, which
+  `pip` can install into; the runner's system Python refuses it.
 - `version`: the version of that runtime. Default `"1.3.14"`, which is a bun version, so set it if
-  you use `node`. Put it in quotes.
-- `install`: a command to run first, such as `npm ci`. Left out, nothing is installed.
+  you use `node`; under `python` anything but a 3.x version reads as `"3.12"`. Put it in quotes.
+- `install`: a command to run first, such as `npm ci` or `pip install -r requirements.txt pytest`.
+  Left out, nothing is installed.
 
 ## Comments that are not for AISWEC
 

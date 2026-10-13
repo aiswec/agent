@@ -91,7 +91,8 @@ export const OPENROUTER_MODEL = /^[a-z0-9][a-z0-9._-]*\/[A-Za-z0-9][A-Za-z0-9._-
 /** A Claude model id, which is what `--model` takes when the engine talks to Anthropic. */
 export const ANTHROPIC_MODEL = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
-export const RUNTIMES = ["bun", "node", "none"] as const;
+/** What a stage sets up before the engine runs: python since 2026-10-13 (actions/setup-python, so pip may install). */
+export const RUNTIMES = ["bun", "node", "python", "none"] as const;
 export type Runtime = (typeof RUNTIMES)[number];
 
 /** Where a web build lands when `preview.web.dir` is unset: what most bundlers write to. */

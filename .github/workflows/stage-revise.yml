@@ -327,6 +327,8 @@ jobs:
           GATES=$(pick "$(get '.gates // [] | join("\n")')" "$IN_GATES")
           RUNTIME=$(pick "$(get '.runtime.setup // ""')" "$IN_RUNTIME")
           RUNTIME_VERSION=$(pick "$(get '.runtime.version // ""')" "$IN_RUNTIME_VERSION")
+          # Python's version is a Python version (2026-10-13): the stub's default is bun's.
+          if [ "$RUNTIME" = python ] && ! printf '%s' "$RUNTIME_VERSION" | grep -qE '^3(\.[0-9]+){0,2}$'; then RUNTIME_VERSION=3.12; fi
           INSTALL=$(pick "$(get '.runtime.install // ""')" "$IN_INSTALL")
           RESERVED=$(pick "$(get '.reserved_prefixes // [] | join(",")')" "$IN_RESERVED")
           # Only for the summary: nothing asserts the checks, since a project
@@ -416,7 +418,7 @@ jobs:
           esac
 
           [ -n "$MAINTAINERS" ] || fail "maintainers is empty (set it in the file or the stub)"
-          case "$RUNTIME" in bun|node|none) ;; *) fail "runtime.setup must be bun, node or none, got '$RUNTIME'" ;; esac
+          case "$RUNTIME" in bun|node|python|none) ;; *) fail "runtime.setup must be bun, node, python or none, got '$RUNTIME'" ;; esac
           case "$EFFORT" in ''|low|medium|high|xhigh|max) ;; *) fail "effort must be low, medium, high, xhigh or max, got '$EFFORT'" ;; esac
           # A missing credential is fatal, because nothing can run without one.
           # A setting that belongs to the other provider is not: it is ignored
@@ -1004,15 +1006,42 @@ jobs:
         with:
           node-version: ${{ steps.cfg.outputs.runtime_version }}
 
+      # A Python project (2026-10-13): GitHub's own Python rather than the runner's system one,
+      # which the OS marks as managed, so the install command's pip can install into it.
+      - name: Setup Python
+        if: steps.ctx.outputs.skip != 'true' && steps.cfg.outputs.runtime == 'python'
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ steps.cfg.outputs.runtime_version }}
+
       - name: Pre-install dependencies
         if: steps.ctx.outputs.skip != 'true' && steps.cfg.outputs.install != ''
         run: ${{ steps.cfg.outputs.install }}
 
+      # The checks and the install command a maintainer set are what the engine may run beyond its
+      # own list, each exactly as written (2026-10-13). The list allows bun and `npm run` alone, so
+      # `npm test`, `cargo test`, `go test ./...` or `pytest` were refused, and those are what Setup
+      # suggests. A command holding anything a shell reads as more than words (a quote, a $, a ;
+      # or a |) is not added and the log says so: the engine's list is no place for a pipeline.
       - name: Write the gate list
+        id: gatelist
         if: steps.ctx.outputs.skip != 'true'
         env:
           GATES: ${{ steps.cfg.outputs.gates }}
-        run: printf '%s\n' "$GATES" > /tmp/aiswec-gates.txt
+          INSTALL: ${{ steps.cfg.outputs.install }}
+        run: |
+          printf '%s\n' "$GATES" > /tmp/aiswec-gates.txt
+          TOOLS=""
+          while IFS= read -r CMD; do
+            CMD=${CMD%$'\r'}
+            [ -n "$CMD" ] || continue
+            if printf '%s' "$CMD" | grep -qE '^[A-Za-z0-9./][A-Za-z0-9 ./:=+@_-]*$'; then
+              TOOLS="$TOOLS,Bash($CMD)"
+            else
+              echo "::warning::a check or the install command in .github/aiswec.yml holds more than plain words, so the engine may not run it; name a package.json script or a Makefile target instead"
+            fi
+          done <<< "$(printf '%s\n%s\n' "$GATES" "$INSTALL")"
+          echo "tools=$TOOLS" >> "$GITHUB_OUTPUT"
 
       # What sends Claude Code somewhere other than Anthropic. The action
       # forwards ANTHROPIC_BASE_URL and the three ANTHROPIC_DEFAULT_* slots
@@ -1301,7 +1330,7 @@ jobs:
             --max-turns ${{ steps.cfg.outputs.max_turns }}
             --model ${{ steps.ask.outputs.model }}
             ${{ steps.ask.outputs.effort && format('--effort {0}', steps.ask.outputs.effort) || '' }}
-            --allowedTools "${{ inputs.allowed_tools || 'Read,Edit,Write,Glob,Grep,WebSearch,WebFetch,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(bun install:*),Bash(bun run:*),Bash(bun test:*),Bash(bun tsc:*),Bash(bunx jest:*),Bash(bunx tsc:*),Bash(bunx eslint:*),Bash(npm run:*),Bash(npx jest:*),Bash(npx tsc:*),Bash(npx eslint:*),Bash(gh pr ready:*),Bash(/tmp/aiswec-read:*),Bash(ls:*),Bash(cat:*)' }}"
+            --allowedTools "${{ inputs.allowed_tools || 'Read,Edit,Write,Glob,Grep,WebSearch,WebFetch,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(bun install:*),Bash(bun run:*),Bash(bun test:*),Bash(bun tsc:*),Bash(bunx jest:*),Bash(bunx tsc:*),Bash(bunx eslint:*),Bash(npm run:*),Bash(npx jest:*),Bash(npx tsc:*),Bash(npx eslint:*),Bash(gh pr ready:*),Bash(/tmp/aiswec-read:*),Bash(ls:*),Bash(cat:*)' }}${{ steps.gatelist.outputs.tools }}"
 
       # Claude Code does not stop at --max-turns: it can finish past it and report success, and
       # claude-code-action then fails the step (its run-claude-sdk.ts, since 2026-08-07). By then

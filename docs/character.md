@@ -194,7 +194,7 @@ effort: high                    # low | medium | high | xhigh | max; omit for th
 advance:
   build: approval               # approval (default) | auto: does build start by itself?
 runtime:
-  setup: bun                    # bun | node | none
+  setup: bun                    # bun | node | python | none
   version: "1.3.14"
   install: bun install --frozen-lockfile   # empty skips the step
 gates:                          # run green, in order, before any push (optional)
