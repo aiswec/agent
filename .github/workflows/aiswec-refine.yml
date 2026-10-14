@@ -1,0 +1,47 @@
+name: aiswec Refine
+
+# aiswec's refine stage, called from aiswec/agent, the open source repository, at its released
+# `v2`: a fix there reaches this repository with no commit here. This stub is
+# only triggers, permissions, concurrency, secrets and the namespace;
+# everything about how aiswec behaves (who may ask, model, effort, budgets,
+# gates, runtime, whether build starts on its own) is .github/aiswec.yml,
+# which Suite edits from the project's Settings page.
+#
+# Identity: with the AISWEC_APP_ID / AISWEC_APP_PRIVATE_KEY secrets the
+# pipeline acts as aiswec[bot], and its own comments and labels then fire the
+# triggers below; bot actors get their own concurrency group and are skipped,
+# so the pipeline's acks never cancel a person's pending run.
+
+on:
+  issues:
+    types: [opened, labeled]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Issue number to (re-)refine; assigns it to aiswec"
+        required: true
+        type: string
+
+# A called workflow's GITHUB_TOKEN is capped by the caller's, so the grant is
+# stated here. It is the fallback identity; in App mode the App token is used.
+permissions:
+  contents: read
+  issues: write
+  id-token: write # proves the run to aiswec.com for the App token (and, without the App, to the Claude App)
+
+concurrency:
+  group: aiswec-refine-${{ github.event.issue.number || inputs.issue_number }}${{ endsWith(github.actor, '[bot]') && '-bot' || '' }}
+  cancel-in-progress: false
+
+jobs:
+  refine:
+    if: github.event_name == 'workflow_dispatch' || !endsWith(github.actor, '[bot]')
+    uses: aiswec/agent/.github/workflows/stage-refine.yml@v2
+    secrets:
+      claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      openrouter_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+      aiswec_key: ${{ secrets.AISWEC_KEY }}
+      aiswec_app_id: ${{ secrets.AISWEC_APP_ID }}
+      aiswec_app_private_key: ${{ secrets.AISWEC_APP_PRIVATE_KEY }}
+    with:
+      namespace: aiswec
