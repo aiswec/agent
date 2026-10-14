@@ -32,7 +32,7 @@ concurrency:
 jobs:
   revise:
     if: github.event_name == 'workflow_dispatch' || !endsWith(github.actor, '[bot]')
-    uses: aiswec/core/.github/workflows/stage-revise.yml@v2
+    uses: aiswec/agent/.github/workflows/stage-revise.yml@v2
     secrets:
       claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
       openrouter_api_key: ${{ secrets.OPENROUTER_API_KEY }}

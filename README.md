@@ -2,13 +2,13 @@
   <img src="https://aiswec.com/favicon.svg" width="56" height="56" alt="AISWEC">
 </p>
 
-<h1 align="center">AISWEC</h1>
+<h1 align="center">AISWEC Agent</h1>
 
 <p align="center"><b>Issue in. Pull request out.</b><br>
 An AI software engineer that works inside your GitHub repository.</p>
 
 <p align="center">
-  <a href="https://aiswec.com/core/">Website</a> ·
+  <a href="https://aiswec.com/agent/">Website</a> ·
   <a href="https://aiswec.com/suite">Suite</a> ·
   <a href="docs/how-it-works.md">How it works</a> ·
   <a href="docs/self-host.md">Self-host</a> ·
@@ -21,7 +21,7 @@ You write a task as a GitHub issue. AISWEC answers with a plan. You approve it. 
 code on a branch, runs your checks and opens a pull request. You review it, and AISWEC answers your
 review with commits. Nothing is built before you approve, and merging is always yours.
 
-This repository is AISWEC's engine: the three GitHub Actions workflows that do the work, and the
+This repository is AISWEC Agent: the three GitHub Actions workflows that do the work, and the
 library and command line they are built from. It is public so you can read every line that runs in
 your CI before you let it.
 
@@ -109,7 +109,7 @@ bun run cli prompt refine       # what the model is handed, word for word
 - [The wire format](docs/wire.md): every comment, label and marker AISWEC writes, exactly.
 - [How AISWEC behaves](docs/character.md): when it asks, when it plans, when it stops.
 
-The same manuals are at [aiswec.com/core/docs](https://aiswec.com/core/docs/). Suite, the hosted app, has
+The same manuals are at [aiswec.com/agent/docs](https://aiswec.com/agent/docs/). Suite, the hosted app, has
 [a manual of its own](https://aiswec.com/suite/docs).
 
 ## License

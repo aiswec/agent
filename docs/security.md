@@ -166,7 +166,7 @@ proof, signed by GitHub, of which repository and which workflow is asking.
 - AISWEC never receives your model key, your code or your issues this way.
 
 What reaches AISWEC through the App, and for how long, is on the App's own
-[privacy page](https://aiswec.com/core/privacy/). Suite, the web app, reads GitHub as the
+[privacy page](https://aiswec.com/agent/privacy/). Suite, the web app, reads GitHub as the
 person signed in to it. What it keeps is in the [privacy policy](https://aiswec.com/privacy/).
 
 ## Third-party code a run uses

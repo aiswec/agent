@@ -366,7 +366,7 @@ export function parseSettings(document: unknown): SettingsParse {
 const NEW_FILE_HEADER =
   " How aiswec behaves in this repository. Read by every stage when it starts;\n" +
   " a value here wins over the stub's `with:` input. Every key:\n" +
-  " https://github.com/aiswec/core/blob/main/docs/settings.md. Edit, push, and\n" +
+  " https://github.com/aiswec/agent/blob/main/docs/settings.md. Edit, push, and\n" +
   " the next run picks it up, with no workflow change needed.";
 
 /** Every leaf the schema knows, in the file's documented order. */

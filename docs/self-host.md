@@ -135,7 +135,7 @@ Copy the three files in [`setup`](../setup) into your repository's
 mkdir -p .github/workflows
 for stage in refine build revise; do
   curl -fsSL -o .github/workflows/aiswec-$stage.yml \
-    https://raw.githubusercontent.com/aiswec/core/main/setup/aiswec-$stage.yml
+    https://raw.githubusercontent.com/aiswec/agent/main/setup/aiswec-$stage.yml
 done
 ```
 
