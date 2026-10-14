@@ -8,7 +8,7 @@
 An AI software engineer that works inside your GitHub repository.</p>
 
 <p align="center">
-  <a href="https://aiswec.com">Website</a> ·
+  <a href="https://aiswec.com/core/">Website</a> ·
   <a href="https://aiswec.com/suite">Suite</a> ·
   <a href="docs/how-it-works.md">How it works</a> ·
   <a href="docs/self-host.md">Self-host</a> ·
@@ -109,7 +109,7 @@ bun run cli prompt refine       # what the model is handed, word for word
 - [The wire format](docs/wire.md): every comment, label and marker AISWEC writes, exactly.
 - [How AISWEC behaves](docs/character.md): when it asks, when it plans, when it stops.
 
-The same manuals are at [aiswec.com/docs](https://aiswec.com/docs/). Suite, the hosted app, has
+The same manuals are at [aiswec.com/core/docs](https://aiswec.com/core/docs/). Suite, the hosted app, has
 [a manual of its own](https://aiswec.com/suite/docs).
 
 ## License
