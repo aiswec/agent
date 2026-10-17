@@ -1,0 +1,9 @@
+# How aiswec behaves in this repository. Read by every stage when it starts;
+# a value here wins over the stub's `with:` input. Every key:
+# https://github.com/aiswec/agent/blob/main/docs/settings.md. Edit, push, and
+# the next run picks it up, with no workflow change needed.
+
+maintainers:
+  - yusufseyrek
+gates:
+  - bun run test
