@@ -10,6 +10,7 @@ An AI software engineer that works inside your GitHub repository.</p>
 <p align="center">
   <a href="https://aiswec.com/agent/">Website</a> ·
   <a href="https://aiswec.com/suite">Suite</a> ·
+  <a href="docs/getting-started.md">Getting started</a> ·
   <a href="docs/how-it-works.md">How it works</a> ·
   <a href="docs/self-host.md">Self-host</a> ·
   <a href="docs/security.md">Security</a>
@@ -61,6 +62,9 @@ changes, in a browser or on your phone. Your first project is free ([pricing](ht
 the work to carry your own name, your own GitHub App. Nothing then talks to AISWEC's servers.
 [Self-hosting guide](docs/self-host.md).
 
+Either way, [Getting started](docs/getting-started.md) says what to have ready first: a model to run
+on, Claude Code for your key, and a repository with a check that passes.
+
 ## Is it safe to let it run?
 
 - **Only the maintainers you list can start it.** Opening an issue starts nothing. Every stage checks
@@ -102,6 +106,7 @@ bun run cli prompt refine       # what the model is handed, word for word
 
 ## Manuals
 
+- [Getting started](docs/getting-started.md): what you need, your key, your repository, your first task.
 - [How it works](docs/how-it-works.md): the loop, the labels, approving, pausing.
 - [Self-hosting](docs/self-host.md): run the stages with your own key and your own App.
 - [Settings](docs/settings.md): every key of `.github/aiswec.yml`.

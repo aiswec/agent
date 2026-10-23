@@ -2,7 +2,8 @@
 
 Run AISWEC in your own repository with your own model key, without Suite and without AISWEC's
 servers. It takes about fifteen minutes. If you would rather click than copy, the hosted way does
-all of this for you: install the App and open [Suite](https://aiswec.com/suite).
+all of this for you: install the App and open [Suite](https://aiswec.com/suite). New to AISWEC?
+[Getting started](getting-started.md) says what to have ready first.
 
 ```mermaid
 flowchart LR
